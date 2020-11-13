@@ -6,11 +6,6 @@
 #include<signal.h>
 
 
-static int count;
-static void sig_init(int signo){
-    printf("\n received %d datagrams\n",count);
-    exit(0);
-}
 
 
 int main(){ 
@@ -33,14 +28,12 @@ int main(){
     if(er1< 0){
         perror("listen"); exit(-1);
     }
-    signal(SIGPIPE,sig_init);
 
     struct sockaddr_in cli_addr;
     socklen_t cli_len = sizeof(cli_addr);
     int connfd = accept(listenfd,&cli_addr,&cli_len);
 
     char message[1024];   
-    count = 0;
     while(1){
         int n = read(connfd,message, 4);
         if(n<0){
@@ -51,6 +44,5 @@ int main(){
         }
         message[n] == '\0';
         printf("receive%s\n",message);
-        count++;
     }
 }
