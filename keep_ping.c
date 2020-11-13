@@ -15,7 +15,7 @@ int main(int argc, char** argv){
     struct sockaddr_in cli;
     bzero(&cli,sizeof(cli));
     cli.sin_family = AF_INET;
-    cli.sin_port = htons(54321);
+    cli.sin_port = htons(6666);
     inet_pton(AF_INET,argv[1],&cli.sin_addr);
 
     int con_fd = socket(AF_INET,SOCK_STREAM,0);
@@ -24,7 +24,7 @@ int main(int argc, char** argv){
     if(en < 0)  perr_ex("connect");
 
     char recv_line[MAXLINE +1 ];
-    int n;
+    
     fd_set readmask, allreads;
 
     struct timeval tv;
@@ -41,8 +41,9 @@ int main(int argc, char** argv){
         int rc = select(con_fd+1, &readmask,NULL,NULL,&tv);
         if (rc < 0) perr_ex("select failed");
         if (rc == 0) {
-            if(++heatbeats > KEEP_ALIVE_PROBETIMES)
-                perr_ex("con");
+            if(++heatbeats > KEEP_ALIVE_PROBETIMES){
+                perr_ex("the sending heatbeats isn't receive");
+            }
             printf("sending heaetbeat #%d\n",heatbeats);
             msg.type = htonl(MSG_PING);
             rc = send(con_fd,&msg,sizeof(msg),0);
@@ -51,9 +52,8 @@ int main(int argc, char** argv){
             continue;
         }
 
-        if (FD_ISSET(con_fd,&readmask)){
-        
-            n = read(con_fd,recv_line,MAXLINE);
+        if (FD_ISSET(con_fd,&readmask)){     
+            int n = read(con_fd,recv_line,MAXLINE);
             if (n < 0) perr_ex("read");
             printf("receive heartbeat\n");
             tv.tv_sec = KEEP_ALIVE_TIME;

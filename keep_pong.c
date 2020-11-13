@@ -15,7 +15,7 @@ int main(int argc, char** argv){
     struct sockaddr_in ser;
     bzero(&ser,sizeof(ser));
     ser.sin_family = AF_INET;
-    ser.sin_port = htons(54321);
+    ser.sin_port = htons(6666);
     ser.sin_addr.s_addr=INADDR_ANY;
 
     int ser_fd = socket(AF_INET,SOCK_STREAM,0);
@@ -26,14 +26,15 @@ int main(int argc, char** argv){
     struct sockaddr_in cli;
     socklen_t cli_len = sizeof(cli);
     int recv_fd = accept(ser_fd,&cli,&cli_len);
-
+    if(recv_fd < 0) perr_ex("recv connection failed");
     messageObject msg;
     while(1){ 
-        int n=read(recv_fd,&msg,sizeof(messageObject));
+        int n = read(recv_fd,&msg,sizeof(messageObject));
         if (n<0) perr_ex("read");
         if (n==0) perr_ex("cli close");
 
-        if( ntohl(msg.type)  == MSG_PING){
+        if( ntohl(msg.type) == MSG_PING){
+            printf("receive packet\n");
             messageObject wr;
             wr.type = MSG_PONG;
             sleep(atoi(argv[1]));
