@@ -8,15 +8,16 @@ int main(){
     int stdin_fd = STDIN_FILENO;
 
     struct sockaddr_in ser;
-    ser.sin_addr.s_addr = AF_INET;
+    bzero(&ser,sizeof(ser));
+    ser.sin_addr.s_addr = INADDR_ANY;
     ser.sin_port = htons(8888);
     ser.sin_family = AF_INET;
     bind(listen_fd,&ser,sizeof(ser));
     listen(listen_fd,3);
 
 
-    int epoll_fd = epoll_create(0); 
-    
+    int epoll_fd = epoll_create(10); 
+    if(epoll_fd<0) err_exit("create");
     struct epoll_event listen_ev;
     listen_ev.data.fd = listen_fd;
     listen_ev.events = EPOLLIN;
@@ -29,13 +30,16 @@ int main(){
     epoll_ctl(epoll_fd,EPOLL_CTL_ADD,stdin_fd,&stdin_ev);
     
     
-    struct epoll_event* ev_set;
+    struct epoll_event ev_set[1024];
+    
 
     while(1){
         int n = epoll_wait(epoll_fd,ev_set,2,3);
-        if ( n==0 ) printf("time out process\n");
+        if(n<0) err_exit("wait");
+  
+        //if (n==0) printf("time out process\n");
         if (n >0){
-            for(int i= 0; i<n;i++){
+            for(int i=0; i<n;i++){
                 if(ev_set[i].data.fd ==listen_fd){
                     struct sockaddr_in cli;
                     socklen_t cli_len = sizeof(cli);

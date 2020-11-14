@@ -9,7 +9,7 @@ int main(){
     struct sockaddr_in ser;
     bzero(&ser,sizeof(ser));
     ser.sin_addr.s_addr = INADDR_ANY;
-    ser.sin_port = htons(1234);
+    ser.sin_port = htons(50001);
     ser.sin_family = AF_INET;
     bind(listen_fd,&ser,sizeof(ser));
     listen(listen_fd,5);
