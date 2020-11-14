@@ -1,4 +1,4 @@
-#include "comm.h"
+#include "../comm.h"
 
 
 int main(){
@@ -24,6 +24,7 @@ int main(){
             msg[n] = '\0';
             printf("receive %s\n",msg);
         }
+        
         sleep(4);
     }
 }   
