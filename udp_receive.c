@@ -1,7 +1,5 @@
-#include<stdio.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-#include<string.h>
+#include "comm.h"
+
 
 int main(){
 
@@ -14,14 +12,14 @@ int main(){
     ser.sin_port = htons(7777);
     
     bind(listen_fd,&ser,sizeof(ser));
-    listen(listen_fd,5);
-    struct sockaddr_in cli;
-    socklen_t cli_len = sizeof(cli);
-    int rec_fd = accept(listen_fd,&cli,&cli_len);
+
     
     char msg[1024] = {0};
     while(1){
-        int n = recvfrom(rec_fd,msg,10,0,&cli,&cli_len);
+        //int n = recvfrom(rec_fd,msg,10,0,NULL,NULL);
+        int n = recv(listen_fd,msg,2,0);
+        if(n<0) err_exit("rec");
+        printf("%d\n",n);
         if(n >0){
             msg[n] = '\0';
             printf("receive %s\n",msg);
