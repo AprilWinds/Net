@@ -1,53 +1,162 @@
+
+#include<errno.h>
+#include<assert.h>
+#include<string.h>
 #include "../comm.h"
 #include <sys/epoll.h>
 
-
-int main(){
-
-    int listen_fd = socket(AF_INET,SOCK_STREAM,0);
-    int stdin_fd = STDIN_FILENO;
-
-    struct sockaddr_in ser;
-    bzero(&ser,sizeof(ser));
-    ser.sin_addr.s_addr = INADDR_ANY;
-    ser.sin_port = htons(8888);
-    ser.sin_family = AF_INET;
-    bind(listen_fd,&ser,sizeof(ser));
-    listen(listen_fd,3);
-
-
-    int epoll_fd = epoll_create(10); 
-    if(epoll_fd<0) err_exit("create");
-    struct epoll_event listen_ev;
-    listen_ev.data.fd = listen_fd;
-    listen_ev.events = EPOLLIN;
-
-    struct epoll_event stdin_ev;
-    listen_ev.data.fd = stdin_fd;
-    listen_ev.events = EPOLLIN;
-   
-    epoll_ctl(epoll_fd,EPOLL_CTL_ADD,listen_fd,&listen_ev);
-    epoll_ctl(epoll_fd,EPOLL_CTL_ADD,stdin_fd,&stdin_ev);
-    
-    
-    struct epoll_event ev_set[1024];
-    
-
-    while(1){
-        int n = epoll_wait(epoll_fd,ev_set,2,3);
-        if(n<0) err_exit("wait");
-  
-        //if (n==0) printf("time out process\n");
-        if (n >0){
-            for(int i=0; i<n;i++){
-                if(ev_set[i].data.fd ==listen_fd){
-                    struct sockaddr_in cli;
-                    socklen_t cli_len = sizeof(cli);
-                    accept(listen_fd,&cli,&cli_len);
-                    printf("conn\n");
-                }
-            }
-            
-        }
-    }
+static void usage(const char* proc)
+{
+	assert(proc);
+	printf("usage: %s [ip] [port]\n",proc);
+}
+ 
+static int set_nonblock(int fd)
+{
+	int fl = fcntl(fd,F_SETFL);
+	fcntl(fd,F_SETFL,fl|O_NONBLOCK);
+}
+ 
+int my_read(int fd,char* buf,int len)
+{
+	assert(buf);
+	ssize_t total = 0;
+	ssize_t s = 0;
+	while((s = read(fd,&buf[total],len - 1 - total)) > 0&&errno != EAGAIN)
+	{
+		total += s;
+	}
+ 
+	return total;
+}
+ 
+int start_up(char* ip,int port)
+{
+	assert(ip);
+	assert(port > 0);
+ 
+	int sock = socket(AF_INET,SOCK_STREAM,0);
+	if(sock < 0)
+	{
+		perror("socket");
+		exit(1);
+	}
+	
+	struct sockaddr_in local;
+	local.sin_family = AF_INET;
+	local.sin_port = htons(port);
+	local.sin_addr.s_addr = inet_addr(ip);
+ 
+	if(bind(sock,(struct sockaddr*)&local,sizeof(local)) < 0)
+	{
+		perror("bind");
+		exit(2);
+	}
+ 
+	if(listen(sock,5) < 0)
+	{
+		perror("listen");
+		exit(3);
+	}
+ 
+	return sock;
+}
+ 
+int main(int argc,char* argv[])
+{
+	if(argc != 3)
+	{
+		usage(argv[0]);
+		return 1;
+	}
+	int listen_sock = start_up(argv[1],atoi(argv[2]));
+	int epfd = epoll_create(256);
+	if(epfd < 0)
+	{
+		perror("epoll_create");
+		return 2;
+	}
+	
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.fd = listen_sock;
+	epoll_ctl(epfd,EPOLL_CTL_ADD,listen_sock,&ev);
+	int nums = 0;
+ 
+	struct epoll_event ready_events[64];
+	int len = 64;
+	int timeout = -1;
+ 
+	while(1)
+	{
+		switch(nums = epoll_wait(epfd,ready_events,len,timeout))
+		{
+			case 0:
+				printf("timeout..");
+				break;
+			case -1:
+				perror("epoll_wait");
+				break;
+			default:
+				{
+					int i = 0;
+					for(;i < nums; i++)
+					{
+						int fd = ready_events[i].data.fd;
+						if(fd == listen_sock && ready_events[i].events & EPOLLIN)
+						{
+							struct sockaddr_in client;
+							socklen_t len = sizeof(client);
+							int new_fd = accept(listen_sock,(struct sockaddr*)&client,&len);
+							if(new_fd < 0)
+							{
+								perror("accept");
+								continue;
+							}
+ 
+							printf("get a new client:%s:%d\n",inet_ntoa(client.sin_addr),ntohs(client.sin_port));
+ 
+							ev.events = EPOLLIN|EPOLLET;
+							ev.data.fd = new_fd;
+							set_nonblock(new_fd);
+							epoll_ctl(epfd,EPOLL_CTL_ADD,new_fd,&ev);
+						}
+						else
+						{
+							if(ready_events[i].events & EPOLLIN)
+							{
+								char buf[1024];
+								ssize_t s = read(fd,buf,sizeof(buf) - 1);
+								if(s > 0)
+								{
+									buf[s] = 0;
+									printf("client#%s\n",buf);
+									ev.events = EPOLLOUT|EPOLLET;
+									ev.data.fd = fd;
+									epoll_ctl(epfd,EPOLL_CTL_MOD,fd,&ev);
+								}
+								// else if(s == 0){
+								// 	epoll_ctl(epfd,EPOLL_CTL_DEL,fd,NULL);
+								// 	close(fd);
+								// 	printf("client close...");
+								// }else{
+								// 	perror("read");
+								// }
+							}
+							// else if(ready_events[i].events & EPOLLOUT)
+							// {
+							// 	char buf[1024];
+							// 	sprintf(buf,"HTTP/1.0 200 OK\r\n\r\n<html><h2>hello</h2></html>");
+							// 	write(fd,buf,strlen(buf));
+							// 	epoll_ctl(epfd,EPOLL_CTL_DEL,fd,NULL);
+							// 	close(fd);
+							// }
+							
+						}
+					}
+				}
+				break;
+		}
+	}
+	return 0;
 }

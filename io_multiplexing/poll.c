@@ -30,10 +30,10 @@ int main(){
                     if(events[i].fd == listen_fd){
                         struct sockaddr_in cli;
                         socklen_t cli_len;                
-                        accept(events[i].fd,&cli,&cli_len);
-                        printf("connection ..\n");
-                        //printf("con_ip: %s\n",inet_ntoa(cli.sin_addr));
-                        //printf("con_port:%u\n",ntohs(cli.sin_port));
+                        int a_fd = accept(events[i].fd,&cli,&cli_len);
+                        printf("connection ..%d\n",a_fd);
+                      //  printf("con_ip: %s\n",inet_ntoa(cli.sin_addr));
+                      //  printf("con_port:%u\n",ntohs(cli.sin_port));
                     }else{
                         
                         int n = read(events[i].fd,b,10);
