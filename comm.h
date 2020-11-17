@@ -4,6 +4,7 @@
 #include<string.h>
 #include<unistd.h>
 #include<stdlib.h>
+#include<fcntl.h>
 
 void err_exit(char* str){
     perror(str);
