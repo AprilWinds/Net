@@ -9,21 +9,24 @@ void  handle(){
 
 
 
-int main(){
+int main(int argc, char** argv){
+    if(argc < 3){
+        err_exit("ip port");
+    }
 
     signal(SIGPIPE,handle);
     int req_fd = socket(AF_INET,SOCK_STREAM,0);
 
     struct sockaddr_in cli;
     bzero(&cli,sizeof(cli));
-    inet_pton(AF_INET,"127.0.0.1",&cli.sin_addr);
-    cli.sin_port = htons(8000);
+    inet_pton(AF_INET,argv[2],&cli.sin_addr);
+    cli.sin_port = htons(atoi(argv[3]));
     cli.sin_family = AF_INET;
     int e = connect(req_fd,&cli,sizeof(cli));
     if(e <0) perror("connect");
 
     while(1){
-       int n = send(req_fd,"abc",3,0);
+       int n = send(req_fd,"abcdefg",7,0);
        if(n <= 0) perror("wr");
        sleep(2);
     }    
