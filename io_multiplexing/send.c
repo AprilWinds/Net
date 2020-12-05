@@ -10,7 +10,7 @@ void  handle(){
 
 
 int main(int argc, char** argv){
-    if(argc < 3){
+    if(argc != 3){
         err_exit("ip port");
     }
 
@@ -19,8 +19,8 @@ int main(int argc, char** argv){
 
     struct sockaddr_in cli;
     bzero(&cli,sizeof(cli));
-    inet_pton(AF_INET,argv[2],&cli.sin_addr);
-    cli.sin_port = htons(atoi(argv[3]));
+    inet_pton(AF_INET,argv[1],&cli.sin_addr);
+    cli.sin_port = htons(atoi(argv[2]));
     cli.sin_family = AF_INET;
     int e = connect(req_fd,&cli,sizeof(cli));
     if(e <0) perror("connect");
